@@ -1,0 +1,28 @@
+####
+n=6
+MatrizFlujo=[0.0 0  0 0 0 0;4 0 0 0 0 0;2 0 0 1 0 0;0 3 2 0 0 0;0 0 3 0 0 0;0 0 0 2 4 0]'
+#####
+n=8
+MatrizFlujo=zeros(n,n)
+MatrizFlujo[1,2]=8
+MatrizFlujo[1,3]=7
+MatrizFlujo[1,4]=4
+MatrizFlujo[2,3]=2
+MatrizFlujo[2,5]=3
+MatrizFlujo[2,6]=9
+MatrizFlujo[3,4]=5
+MatrizFlujo[3,6]=6
+MatrizFlujo[4,6]=7
+MatrizFlujo[4,7]=2
+MatrizFlujo[5,8]=9
+MatrizFlujo[6,5]=3
+MatrizFlujo[6,8]=5
+MatrizFlujo[6,7]=4
+MatrizFlujo[7,8]=8
+println(MatrizFlujo)
+
+## para crear flujo aleatorio, aunque falta eliminar diagonal
+MatrizFlujo=round.(10*rand(n,n),0)
+MatrizFlujo[n,:]=0
+print(MatrizFlujo)
+

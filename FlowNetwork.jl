@@ -1,30 +1,8 @@
 using JuMP
-using Mosek
-clearconsole()
-n=8
-#MatrizFlujo=[0.0 0  0 0 0 0;4 0 0 0 0 0;2 0 0 1 0 0;0 3 2 0 0 0;0 0 3 0 0 0;0 0 0 2 4 0]'
-MatrizFlujo=zeros(n,n)
-MatrizFlujo[1,2]=8
-MatrizFlujo[1,3]=7
-MatrizFlujo[1,4]=4
-MatrizFlujo[2,3]=2
-MatrizFlujo[2,5]=3
-MatrizFlujo[2,6]=9
-MatrizFlujo[3,4]=5
-MatrizFlujo[3,6]=6
-MatrizFlujo[4,6]=7
-
-MatrizFlujo[4,7]=2
-MatrizFlujo[5,8]=9
-MatrizFlujo[6,5]=3
-MatrizFlujo[6,8]=5
-MatrizFlujo[6,7]=4
-MatrizFlujo[7,8]=8
-println(MatrizFlujo)
-
-#MatrizFlujo=round.(10*rand(n,n),0)
-println(MatrizFlujo)
-m=Model(solver = MosekSolver())
+using Clp
+n=6
+MatrizFlujo=[0.0 4  2 0 0 0;0 0 0 3 0 0;0 0 0 2 3 0;0 0 1 0 0 2;0 0 0 0 0 4;0 0 0 0 0 0]
+m=Model(solver = ClpSolver())
 @variable(m,x[1:n,1:n]>=0)
 for i= 2:n-1
     a = zero(AffExpr)
@@ -62,5 +40,29 @@ for i=1:n
         end
     end
 end
+MFMaximo=getvalue(x)
 
-println(getvalue(x))
+
+#### En esta parte se calcula la particion del grafo
+#### El conjunto "Alcanzables" va contener los vertices del grafo que forman la "mitad" de la particion
+Alcanzables=Set{Int32}()
+push!(Alcanzables,1)
+tmAlc=length(Alcanzables)
+r=0
+while (tmAlc>r)
+    r=tmAlc
+    for x in Alcanzables
+        if x>0 & x<=n
+            for i=1:n
+                if MatrizFlujo[x,i]-MFMaximo[x,i]>0
+                    push!(Alcanzables,i)
+                end
+                if MFMaximo[i,x]>0
+                    push!(Alcanzables,i)
+                end
+            end
+        end
+    end
+    tmAlc=length(Alcanzables)
+end
+print(Alcanzables)
