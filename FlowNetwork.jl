@@ -1,68 +1,124 @@
 using JuMP
 using Clp
-n=6
-MatrizFlujo=[0.0 4  2 0 0 0;0 0 0 3 0 0;0 0 0 2 3 0;0 0 1 0 0 2;0 0 0 0 0 4;0 0 0 0 0 0]
-m=Model(solver = ClpSolver())
-@variable(m,x[1:n,1:n]>=0)
-for i= 2:n-1
-    a = zero(AffExpr)
-    for j = 1 : n
-        if MatrizFlujo[i,j]>0.0
-            a += -x[i,j]
-        end
-        if MatrizFlujo[j,i]>0.0
-            a += x[j,i]
-        end
+clearconsole()
+##Dimensiones de la matriz adyacencia del grafo
+## N: vertices
+N=n*m
+#MatrizFlujo=[['s',1,20],[8,'t',20],[1,2,8],[1,3,7],[1,4,4],[2,3,2],[2,5,3],[2,6,9],[3,4,5],[3,6,6],[4,6,7],[4,7,2],[5,8,9],[6,5,3],[6,8,5],[6,7,4],[7,8,8]]
+MatrizFlujo=MG
+tam=length(MatrizFlujo)
+SalidaFlujo = Dict()
+
+for (i,e) in enumerate(MatrizFlujo)
+    ind=get(SalidaFlujo, e[1], -1)
+    if ind != -1
+        push!(SalidaFlujo[e[1]],i)
+    else
+        push!(SalidaFlujo,e[1]=> [i])
     end
-    @constraint(m,a==0)
 end
-for i = 1: n
-    for j=1: n
-        if MatrizFlujo[i,j]>0
-            @constraint(m,x[i,j]<=MatrizFlujo[i,j])
+
+EntradaFlujo = Dict()
+
+for (i,e) in enumerate(MatrizFlujo)
+    ind=get(EntradaFlujo, e[2], -1)
+    if ind != -1
+        push!(EntradaFlujo[e[2]],i)
+    else
+        push!(EntradaFlujo,e[2]=> [i])
+    end
+end
+
+modelo=Model(solver = ClpSolver())
+@variable(modelo,x[1:tam]>=0)
+for i = 1:N
+    a = zero(AffExpr)
+    if !isempty(SalidaFlujo[i])
+        for k in SalidaFlujo[i]
+            a += -x[k]
         end
     end
+    if !isempty(EntradaFlujo[i])
+        for k in EntradaFlujo[i]
+            a += x[k]
+        end
+    end
+    @constraint(modelo,a==0)
+end
+
+for (k,e) in enumerate(MatrizFlujo)
+    @constraint(modelo,x[k] <= e[3])
 end
 a = zero(AffExpr)
-for j = 1: n-1
-    if MatrizFlujo[1,j]>0
-        a+= x[1,j]
-    end
+for k in SalidaFlujo['s']
+    a+=x[k]
 end
-@objective(m,Max,a)
-status = solve(m)
-println("Objective value: ", getobjectivevalue(m))
-for i=1:n
-    for j=1:n
-        d= getvalue(x[i,j])
-        if d>0
-            println("El flujo de la arista ", i, " a ", j," es: ",d)
-        end
-    end
-end
+@objective(modelo,Max,a)
+status = solve(modelo)
+println("Objective value: ", getobjectivevalue(modelo))
+
+#for (i,e) in enumerate(MatrizFlujo)
+#   d=getvalue(x[i])
+#   println("El flujo de la arista ", e[1], " a ", e[2]," es: ",d)
+#end
+
+##Esta matriz contiene la asignación optima del
+##problema
 MFMaximo=getvalue(x)
 
+### En esta parte se calcula la particion del grafo
+### El conjunto "Alcanzables" va contener los vertices
+### del grafo que forman la "mitad" de la particion
 
-#### En esta parte se calcula la particion del grafo
-#### El conjunto "Alcanzables" va contener los vertices del grafo que forman la "mitad" de la particion
-Alcanzables=Set{Int32}()
-push!(Alcanzables,1)
+Alcanzables=Set{Any}('s')
 tmAlc=length(Alcanzables)
 r=0
+
 while (tmAlc>r)
     r=tmAlc
-    for x in Alcanzables
-        if x>0 & x<=n
-            for i=1:n
-                if MatrizFlujo[x,i]-MFMaximo[x,i]>0
-                    push!(Alcanzables,i)
+    NewAlcanzables = Set{Any}()
+    for z in Alcanzables
+        X_out= get(SalidaFlujo,z,[])
+        if !isempty(X_out)
+            for k in X_out
+                if (MatrizFlujo[k])[3]-MFMaximo[k]>0
+                    push!(NewAlcanzables,(MatrizFlujo[k])[2])
                 end
-                if MFMaximo[i,x]>0
-                    push!(Alcanzables,i)
+            end
+        end
+        X_in= get(EntradaFlujo,z,[])
+        if !isempty(X_in)
+            for k in X_in
+                if MFMaximo[k]>0
+                    push!(NewAlcanzables,(MatrizFlujo[k])[1])
                 end
             end
         end
     end
+    Alcanzables =  union(Alcanzables, NewAlcanzables)
     tmAlc=length(Alcanzables)
 end
-print(Alcanzables)
+Cortadura=Set()
+for z in Alcanzables
+    X_out = get(SalidaFlujo,z,[])
+    if !isempty(X_out)
+        for k in X_out
+            if !in((MatrizFlujo[k])[2], Alcanzables)
+                push!(Cortadura,z)
+            end
+        end
+    end
+end
+
+ImgFinaBorder = zeros(m,n);
+for i=1:m
+    for j=1:n
+        I = (i-1)*n+j
+        if  in(I,Cortadura)
+            ImgFinaBorder[i,j]=1.0
+        end
+    end
+end
+print("termine2")
+imgFinal=colorview(Gray,ImgFinaBorder)
+save("ImgPensanteFinal.jpg", imgFinal)
